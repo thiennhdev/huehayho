@@ -2,7 +2,8 @@
 // Chấm phát âm kiểu ELSA (bản rút gọn): nói → máy nhận diện → tô màu từng từ / chữ đúng – sai
 import { useEffect, useState } from "react";
 import type { Lang } from "@/content/types";
-import { listen, speak, sttSupported } from "@/lib/speech";
+import { listen, speak, stopListening, sttErrorMessage, sttSupported } from "@/lib/speech";
+import { SttWarning, VoiceRecorder } from "./VoiceTools";
 import { sfx } from "@/lib/sfx";
 import { Ring, SpeakButton, cx } from "../ui";
 import { alignTokens } from "./exercises";
@@ -25,7 +26,7 @@ export function Pronounce({
   onResult?: (score: number, said: string) => void;
 }) {
   const [supported, setSupported] = useState(true);
-  const [state, setState] = useState<"idle" | "listening">("idle");
+  const [state, setState] = useState<"idle" | "starting" | "listening">("idle");
   const [said, setSaid] = useState("");
   const [res, setRes] = useState<{ tokens: string[]; ok: boolean[]; score: number } | null>(null);
   const [err, setErr] = useState("");
@@ -33,13 +34,13 @@ export function Pronounce({
   useEffect(() => setSupported(sttSupported()), []);
 
   async function record() {
-    if (state === "listening") return;
+    if (state !== "idle") return stopListening();
     setErr("");
     setSaid("");
     setRes(null);
-    setState("listening");
+    setState("starting");
     try {
-      const t = await listen(lang, (x) => setSaid(x));
+      const t = await listen(lang, (x) => setSaid(x), () => setState("listening"));
       if (!t.trim()) {
         setErr("Không nghe thấy gì — nói to và rõ hơn nhé");
         return;
@@ -50,8 +51,7 @@ export function Pronounce({
       r.score >= 70 ? sfx.correct() : sfx.wrong();
       onResult?.(r.score, t);
     } catch (e) {
-      const m = (e as Error).message;
-      setErr(m === "not-allowed" ? "Hãy cho phép trình duyệt dùng micro" : m === "no-speech" ? "Không nghe thấy giọng nói" : "Không nhận diện được, thử lại nhé");
+      setErr(sttErrorMessage((e as Error).message));
     } finally {
       setState("idle");
     }
@@ -89,7 +89,7 @@ export function Pronounce({
             onClick={record}
             className={cx(
               "grid h-16 w-16 place-items-center rounded-full text-2xl text-white shadow-lg transition active:scale-95",
-              state === "listening" ? "animate-pulse bg-love ring-8 ring-love/20" : "bg-brand hover:brightness-110",
+              state === "listening" ? "animate-pulse bg-love ring-8 ring-love/20" : state === "starting" ? "bg-warn" : "bg-brand hover:brightness-110",
             )}
             aria-label="Ghi âm"
             title="Bấm và đọc to câu này"
@@ -106,7 +106,8 @@ export function Pronounce({
         )}
       </div>
 
-      {state === "listening" && <div className="text-sm font-semibold text-love">Đang nghe… hãy đọc to câu trên</div>}
+      {state === "starting" && <div className="text-sm font-semibold text-warn">Đang bật micro…</div>}
+      {state === "listening" && <div className="text-sm font-semibold text-love">Đang nghe… đọc to câu trên (bấm 🎙️ lần nữa để dừng)</div>}
       {said && state !== "listening" && (
         <div className="text-xs text-muted">
           Máy nghe được: <span className={cx("text-ink", lang === "zh" && "han")}>“{said}”</span>
@@ -118,7 +119,16 @@ export function Pronounce({
           {best !== null && best > res.score && <span className="ml-2 text-xs font-normal text-muted">(tốt nhất: {best}%)</span>}
         </div>
       )}
-      {err && <div className="text-sm text-zh">{err}</div>}
+      {err && (
+        <div className={cx("flex flex-col gap-2 text-sm", compact ? "" : "items-center")}>
+          <div className="max-w-md text-zh">{err}</div>
+          <div className="text-xs text-muted">Hoặc tự luyện: ghi âm giọng mình rồi nghe lại so với giọng mẫu 👇</div>
+          <VoiceRecorder compact={compact} />
+          <a href="/settings#mic" className="text-xs font-semibold text-brand">Kiểm tra micro →</a>
+        </div>
+      )}
+      {!supported && <VoiceRecorder compact={compact} />}
+      <SttWarning className="max-w-md" />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { Button, Card, cx } from "./ui";
 import { usePrefs } from "@/lib/prefs";
 import { normalize } from "@/lib/progress";
 import { speak, ttsSupported, sttSupported } from "@/lib/speech";
+import { MicCheck } from "./practice/VoiceTools";
 
 export function Settings() {
   const { user, progress, update, replace, name, lang, storage, sync } = useProgress();
@@ -116,6 +117,11 @@ export function Settings() {
         <p className="text-xs text-muted">
           Nhận diện giọng nói (🎙️): {caps.stt ? "✅ có hỗ trợ" : "❌ chưa hỗ trợ trên trình duyệt này (dùng Chrome / Edge / Safari mới)"}. Giọng đọc phụ thuộc thiết bị — trên điện thoại có thể cài thêm giọng Trung/Anh trong phần Cài đặt › Trợ năng › Nội dung được đọc.
         </p>
+      </Card>
+
+      <Card className="flex flex-col gap-3">
+        <h2 id="mic" className="scroll-mt-20 font-bold">🎙️ Kiểm tra micro & nhận diện giọng nói</h2>
+        <MicCheck />
       </Card>
 
       <Card className="flex flex-col gap-3">

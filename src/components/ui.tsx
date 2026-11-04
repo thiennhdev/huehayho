@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { Lang } from "@/content/types";
-import { listen, similarity, speak, sttSupported } from "@/lib/speech";
+import { listen, similarity, speak, stopListening, sttErrorMessage, sttSupported } from "@/lib/speech";
 
 export function cx(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(" ");
@@ -95,7 +95,7 @@ export function SpeakButton({ text, lang, size = "md", rate, label, caption }: {
 /** Nút micro: đọc theo câu mẫu và chấm độ giống */
 export function MicButton({ target, lang, onScore }: { target?: string; lang: Lang; onScore?: (score: number, said: string) => void }) {
   const [supported, setSupported] = useState(false);
-  const [state, setState] = useState<"idle" | "listening">("idle");
+  const [state, setState] = useState<"idle" | "starting" | "listening">("idle");
   const [said, setSaid] = useState("");
   const [score, setScore] = useState<number | null>(null);
   const [err, setErr] = useState("");
@@ -107,31 +107,31 @@ export function MicButton({ target, lang, onScore }: { target?: string; lang: La
         type="button"
         onClick={async (e) => {
           e.stopPropagation();
-          if (state === "listening") return;
+          if (state !== "idle") return stopListening();
           setErr("");
           setScore(null);
           setSaid("");
-          setState("listening");
+          setState("starting");
           try {
-            const text = await listen(lang, (t) => setSaid(t));
+            const text = await listen(lang, (t) => setSaid(t), () => setState("listening"));
             if (target) {
               const s = similarity(target, text, lang);
               setScore(s);
               onScore?.(s, text);
             } else onScore?.(100, text);
           } catch (e) {
-            setErr((e as Error).message === "not-allowed" ? "Hãy cho phép dùng micro" : "Không nghe rõ, thử lại nhé");
+            setErr(sttErrorMessage((e as Error).message));
           } finally {
             setState("idle");
           }
         }}
         className={cx(
           "inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-semibold transition",
-          state === "listening" ? "animate-pulse bg-love text-white" : "bg-love/10 text-love hover:bg-love/15",
+          state === "listening" ? "animate-pulse bg-love text-white" : state === "starting" ? "bg-warn/20 text-warn" : "bg-love/10 text-love hover:bg-love/15",
         )}
         title="Nói theo"
       >
-        🎙️ {state === "listening" ? "Đang nghe…" : target ? "Nói theo" : "Ghi âm"}
+        🎙️ {state === "starting" ? "Đang bật micro…" : state === "listening" ? "Đang nghe… (bấm để dừng)" : target ? "Nói theo" : "Nói"}
       </button>
       {(said || err) && (
         <div className="text-xs text-muted">
