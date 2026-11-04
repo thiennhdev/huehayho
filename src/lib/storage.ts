@@ -25,7 +25,14 @@ let pgReady: Promise<void> | null = null;
 function pg() {
   if (!pgUrl) return null;
   sql ??= neon(pgUrl);
-  pgReady ??= sql`CREATE TABLE IF NOT EXISTS hcn_kv (key TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`.then(() => undefined);
+  pgReady ??= sql`CREATE TABLE IF NOT EXISTS hcn_kv (key TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`
+    .then(() => undefined)
+    .catch((e) => {
+      // Hai lần khởi động cùng lúc có thể cùng tạo bảng → bỏ qua lỗi "đã tồn tại", lỗi khác thì lần sau thử lại
+      if (/already exists|duplicate key/i.test(String(e))) return;
+      pgReady = null;
+      throw e;
+    });
   return sql;
 }
 
