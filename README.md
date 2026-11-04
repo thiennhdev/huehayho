@@ -1,6 +1,6 @@
 # 💜 Học Cùng Nhau
 
-Web app học ngoại ngữ cho **hai người**: một người học **Tiếng Anh (CEFR Pre-A1 → C1 · IELTS 7.0+)**, một người học **Tiếng Trung (HSK 0 → HSK 6, hướng tới HSK 7–9)**. Có mật khẩu riêng cho từng người, tiến độ lưu trên database và hai người xem được tiến độ của nhau.
+Web app học ngoại ngữ cho **hai người**: một người học **Tiếng Anh (CEFR Pre-A1 → C1 · IELTS 7.0+)**, một người học **Tiếng Trung (HSK 0 → HSK 6, hướng tới HSK 7–9)**. Có mật khẩu riêng cho từng người, tiến độ lưu trên database (Postgres, MongoDB hoặc Redis) và hai người xem được tiến độ của nhau.
 
 ## ✨ Tính năng
 
@@ -41,7 +41,10 @@ Phát âm và nhận diện giọng nói dùng Web Speech API có sẵn trong tr
    | `USER1_NAME`, `USER2_NAME` | | Tên hiển thị mặc định (đổi được trong app) |
    | `USER1_LANG`, `USER2_LANG` | | `en` hoặc `zh` |
 
-3. **Database (miễn phí)**: *Storage → Create Database → Upstash for Redis* (chọn vùng **Singapore**) → *Connect* vào project. Vercel tự thêm `KV_REST_API_URL` và `KV_REST_API_TOKEN`.
+3. **Database (miễn phí)** — chọn MỘT trong ba, app tự nhận (ưu tiên Postgres → MongoDB → Redis):
+   - **Neon Postgres** (khuyên dùng): [vercel.com/marketplace/neon](https://vercel.com/marketplace/neon) → vùng Singapore → Connect project. Tự thêm `DATABASE_URL`; bảng `hcn_kv` được tạo tự động.
+   - **MongoDB Atlas**: [vercel.com/marketplace/mongodbatlas](https://vercel.com/marketplace/mongodbatlas) → cluster miễn phí M0 → Connect project. Tự thêm `MONGODB_URI`.
+   - **Upstash Redis**: [vercel.com/marketplace/upstash](https://vercel.com/marketplace/upstash) → Connect project. Tự thêm `KV_REST_API_URL`, `KV_REST_API_TOKEN`.
 4. **Redeploy** (*Deployments → … → Redeploy*) để nhận biến mới.
 
 Chưa có database thì app vẫn chạy, tiến độ tạm lưu trên trình duyệt (có cảnh báo vàng trên trang chủ).
@@ -65,7 +68,7 @@ src/content/pronunciation.ts   Bài luyện phát âm
 src/content/official.ts        Cấp CEFR/HSK chính thức của từng từ (sinh tự động)
 src/components/practice/       Bài tập kiểu Duolingo + chấm phát âm
 src/lib/srs.ts                 Thuật toán lặp lại ngắt quãng
-src/lib/storage.ts             Lưu trữ Upstash Redis
+src/lib/storage.ts             Lưu trữ: Postgres / MongoDB / Redis (tự nhận)
 src/proxy.ts                   Chặn truy cập khi chưa đăng nhập
 ```
 

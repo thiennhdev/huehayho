@@ -73,7 +73,7 @@ export function Dashboard({ outline }: { outline: Outline }) {
     <div className="flex flex-col gap-4">
       {storage === "none" && (
         <div className="rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm">
-          ⚠️ <b>Chưa kết nối database</b> — tiến độ hiện chỉ lưu trên thiết bị này và chưa chia sẻ được cho người kia. Vào Vercel → Storage → tạo <b>Upstash Redis</b> (miễn phí) → Connect vào project → Redeploy. Xem hướng dẫn trong README.
+          ⚠️ <b>Chưa kết nối database</b> — tiến độ hiện chỉ lưu trên thiết bị này và chưa chia sẻ được cho người kia. Vào Vercel → Storage → tạo database miễn phí (<b>Neon Postgres</b>, MongoDB Atlas hoặc Upstash Redis) → Connect vào project → Redeploy.
         </div>
       )}
 

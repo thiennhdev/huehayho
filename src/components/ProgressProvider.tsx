@@ -1,5 +1,5 @@
 "use client";
-// Giữ tiến độ học trong bộ nhớ, lưu tạm trên máy và đồng bộ lên server (Upstash Redis)
+// Giữ tiến độ học trong bộ nhớ, lưu tạm trên máy và đồng bộ lên server (Postgres / MongoDB / Redis)
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Lang } from "@/content/types";
 import { emptyProgress, mergeProgress, normalize, type Progress } from "@/lib/progress";
@@ -11,7 +11,7 @@ export interface SessionUser {
 }
 
 type SyncState = "idle" | "saving" | "saved" | "offline" | "error";
-type StorageKind = "redis" | "memory" | "none" | "unknown";
+type StorageKind = "postgres" | "mongodb" | "redis" | "memory" | "none" | "unknown";
 
 interface Ctx {
   user: SessionUser;

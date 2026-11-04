@@ -122,8 +122,8 @@ export function Settings() {
         <h2 className="font-bold">💾 Dữ liệu</h2>
         <div className="text-sm">
           Trạng thái lưu trữ:{" "}
-          {storage === "redis" ? (
-            <b className="text-ok">✅ Đang đồng bộ lên database (Upstash Redis)</b>
+          {storage === "postgres" || storage === "mongodb" || storage === "redis" ? (
+            <b className="text-ok">✅ Đang đồng bộ lên database ({storage === "postgres" ? "PostgreSQL" : storage === "mongodb" ? "MongoDB" : "Redis"})</b>
           ) : storage === "memory" ? (
             <b className="text-warn">Chạy local — lưu tạm trong bộ nhớ server</b>
           ) : storage === "none" ? (
