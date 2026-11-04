@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Lang, VocabItem } from "@/content/types";
 import { useProgress } from "./ProgressProvider";
 import { Bar, Button, Card, Empty, SpeakButton, cx, shuffle } from "./ui";
-import { XP, addXp, dueCards, langOfId } from "@/lib/progress";
+import { XP, addXp, isNewCard, langOfId, newPerDay, reviewQueue } from "@/lib/progress";
 import { isMature, previewLabel, schedule, type Rating } from "@/lib/srs";
 import { usePrefs } from "@/lib/prefs";
 import { speak } from "@/lib/speech";
@@ -29,7 +29,7 @@ export function Review() {
   const [shown, setShown] = useState(false);
   const [doneCount, setDoneCount] = useState(0);
   const [started, setStarted] = useState(false);
-  const [prefs] = usePrefs();
+  const [prefs, setPrefs] = usePrefs();
 
   useEffect(() => setLang(mainLang), [mainLang]);
 
@@ -42,7 +42,7 @@ export function Review() {
   }, [lang]);
 
   const allIds = useMemo(() => Object.keys(progress.cards).filter((id) => langOfId(id) === lang), [progress.cards, lang]);
-  const due = useMemo(() => (loaded ? dueCards(progress, lang) : []), [progress, lang, loaded]);
+  const due = useMemo(() => (loaded ? reviewQueue(progress, lang) : []), [progress, lang, loaded]);
   const tomorrow = useMemo(() => allIds.filter((id) => progress.cards[id].due <= Date.now() + 86400000).length, [allIds, progress.cards]);
   const mature = allIds.filter((id) => isMature(progress.cards[id])).length;
 
@@ -69,7 +69,8 @@ export function Review() {
     (r: Rating) => {
       if (!id) return;
       if (mode === "due" && card) {
-        update((p) => addXp({ ...p, cards: { ...p.cards, [id]: schedule(p.cards[id], r) } }, XP.review, { reviews: 1 }));
+        const fresh = isNewCard(card) ? 1 : 0;
+        update((p) => addXp({ ...p, cards: { ...p.cards, [id]: schedule(p.cards[id], r) } }, XP.review, { reviews: 1, fresh }));
       }
       setDoneCount((c) => c + 1);
       setShown(false);
@@ -151,6 +152,12 @@ export function Review() {
               <label className="flex items-center gap-2 text-sm text-muted">
                 <input type="checkbox" checked={reverse} onChange={(e) => setReverse(e.target.checked)} /> Chiều ngược: nhìn nghĩa tiếng Việt → nhớ từ
               </label>
+              {lang === "zh" && (
+                <label className="flex items-center gap-2 text-sm text-muted">
+                  <input type="checkbox" checked={prefs.frontPinyin} onChange={(e) => setPrefs({ frontPinyin: e.target.checked })} /> Hiện pinyin ở mặt trước (dễ hơn cho người mới)
+                </label>
+              )}
+              <p className="text-xs text-muted">Tối đa {newPerDay(progress, lang)} từ mới mỗi ngày để không bị quá tải — đổi trong ⚙️ Cài đặt.</p>
               <p className="max-w-md text-xs text-muted">
                 Thuật toán lặp lại ngắt quãng (SM-2, giống Anki): từ nào bạn thấy dễ sẽ được hẹn ôn sau lâu hơn, từ hay quên sẽ xuất hiện lại sớm. Thẻ có khoảng lặp ≥ 21 ngày được tính là “đã thuộc lâu”.
               </p>
@@ -180,9 +187,18 @@ export function Review() {
           {reverse && !shown ? (
             <div className="text-2xl font-bold">{v.vi}</div>
           ) : (
-            <div className="flex items-center gap-3">
-              <div className={cx("font-extrabold", lang === "zh" ? "han text-6xl" : "text-4xl")}>{v.term}</div>
-              <SpeakButton text={v.term} lang={lang} />
+            <div className="flex flex-col items-center gap-1">
+              {lang === "zh" && prefs.frontPinyin && !shown && <div className="py text-lg text-zh">{v.py}</div>}
+              <div className="flex items-center gap-3">
+                <div className={cx("font-extrabold", lang === "zh" ? "han text-6xl" : "text-4xl")}>{v.term}</div>
+                <SpeakButton text={v.term} lang={lang} />
+              </div>
+              {lang === "zh" && !shown && v.hv && (
+                <details className="text-xs text-muted">
+                  <summary className="cursor-pointer">💡 Gợi ý Hán Việt</summary>
+                  <b className="text-ink">{v.hv}</b>
+                </details>
+              )}
             </div>
           )}
           {shown ? (

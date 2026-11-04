@@ -45,6 +45,7 @@ export function HanziPad({
   maxSize = 420,
   replayKey = 0,
   showControls = true,
+  gentle = false,
   onComplete,
   onStroke,
   onStylus,
@@ -58,6 +59,8 @@ export function HanziPad({
   maxSize?: number;
   replayKey?: number;
   showControls?: boolean;
+  /** người mới: chấm nét dễ hơn, gợi ý sớm hơn */
+  gentle?: boolean;
   onComplete?: (r: { mistakes: number; strokes: number }) => void;
   onStroke?: (e: StrokeEvent) => void;
   onStylus?: () => void;
@@ -137,9 +140,9 @@ export function HanziPad({
         run();
       } else {
         w.quiz({
-          leniency: mode === "trace" ? 1.3 : 1.1,
-          showHintAfterMisses: mode === "trace" ? 2 : 3,
-          markStrokeCorrectAfterMisses: 6,
+          leniency: gentle ? (mode === "trace" ? 1.6 : 1.35) : mode === "trace" ? 1.3 : 1.1,
+          showHintAfterMisses: gentle ? (mode === "trace" ? 1 : 2) : mode === "trace" ? 2 : 3,
+          markStrokeCorrectAfterMisses: gentle ? 4 : 6,
           onCorrectStroke: (d) => cb.current.onStroke?.({ strokeNum: d.strokeNum, ok: true, mistakes: d.totalMistakes, remaining: d.strokesRemaining }),
           onMistake: (d) => cb.current.onStroke?.({ strokeNum: d.strokeNum, ok: false, mistakes: d.totalMistakes, remaining: d.strokesRemaining }),
           onComplete: (s) => cb.current.onComplete?.({ mistakes: s.totalMistakes, strokes: totalRef.current }),
@@ -155,7 +158,7 @@ export function HanziPad({
       writerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [char, mode, size, replayKey, highlight]);
+  }, [char, mode, size, replayKey, highlight, gentle]);
 
   // Apple Pencil: phát hiện bút và (khi bật) chỉ nhận nét từ bút — bỏ qua lòng bàn tay
   useEffect(() => {

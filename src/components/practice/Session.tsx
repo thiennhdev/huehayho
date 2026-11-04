@@ -24,34 +24,47 @@ interface Report {
 
 const MAX_HEARTS = 5;
 
-export function Session({ lang, items, onFinish }: { lang: Lang; items: Ex[]; onFinish: (r: SessionResult) => void }) {
+/**
+ * gentle = chế độ người mới: không mất tim, câu sai sẽ được hỏi lại ở cuối buổi (lặp lại có chủ đích),
+ * có pinyin dưới các lựa chọn để dễ nhớ.
+ */
+export function Session({ lang, items, onFinish, gentle = false }: { lang: Lang; items: Ex[]; onFinish: (r: SessionResult) => void; gentle?: boolean }) {
+  const [queue, setQueue] = useState<Ex[]>(items);
+  const retried = useRef(new Set<number>());
   const [i, setI] = useState(0);
   const [hearts, setHearts] = useState(MAX_HEARTS);
   const [checked, setChecked] = useState(false);
   const [report, setReport] = useState<Report>({ ready: false, correct: false });
   const [stats, setStats] = useState({ correct: 0, total: 0 });
   const [combo, setCombo] = useState(0);
-  const ex = items[i];
+  const ex = queue[i];
+  const isRetry = i >= items.length;
 
   function check(r: Report = report) {
     if (checked || !r.ready) return;
     setReport(r);
     setChecked(true);
-    setStats((s) => ({ correct: s.correct + (r.correct ? 1 : 0), total: s.total + 1 }));
+    // Câu hỏi lại không tính vào điểm (đã tính lần đầu)
+    if (!isRetry) setStats((s) => ({ correct: s.correct + (r.correct ? 1 : 0), total: s.total + 1 }));
     if (r.correct) {
       sfx.correct();
       setCombo((c) => c + 1);
     } else {
       sfx.wrong();
       setCombo(0);
-      setHearts((h) => h - 1);
+      if (gentle) {
+        if (!retried.current.has(i) && ex.t !== "speak") {
+          retried.current.add(queue.length);
+          setQueue((q) => [...q, ex]);
+        }
+      } else setHearts((h) => h - 1);
     }
   }
 
   function next(skip = false) {
     const nextStats = skip ? stats : stats;
     if (hearts <= 0) return onFinish({ ...nextStats, hearts: 0, failed: true });
-    if (i + 1 >= items.length) {
+    if (i + 1 >= queue.length) {
       sfx.done();
       return onFinish({ ...nextStats, hearts, failed: false });
     }
@@ -74,17 +87,24 @@ export function Session({ lang, items, onFinish }: { lang: Lang; items: Ex[]; on
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
-        <Bar value={(i / items.length) * 100} color="bg-ok" className="h-3" />
-        <span className="flex shrink-0 items-center gap-0.5 text-sm font-bold text-love" title="Tim — sai 1 câu mất 1 tim">
-          {"❤️".repeat(Math.max(0, hearts))}
-          <span className="opacity-30">{"🤍".repeat(Math.max(0, MAX_HEARTS - hearts))}</span>
-        </span>
+        <Bar value={(i / queue.length) * 100} color="bg-ok" className="h-3" />
+        {gentle ? (
+          <span className="shrink-0 rounded-full bg-ok/15 px-2 py-0.5 text-xs font-bold text-ok" title="Chế độ người mới: không mất tim, câu sai sẽ được ôn lại cuối buổi">
+            🌱 {i + 1}/{queue.length}
+          </span>
+        ) : (
+          <span className="flex shrink-0 items-center gap-0.5 text-sm font-bold text-love" title="Tim — sai 1 câu mất 1 tim">
+            {"❤️".repeat(Math.max(0, hearts))}
+            <span className="opacity-30">{"🤍".repeat(Math.max(0, MAX_HEARTS - hearts))}</span>
+          </span>
+        )}
       </div>
+      {isRetry && !checked && <div className="text-center text-xs font-semibold text-warn">🔁 Ôn lại câu vừa sai — lần này chắc chắn nhớ!</div>}
       {combo >= 3 && !checked && <div className="animate-pop text-center text-sm font-bold text-warn">🔥 Chuỗi {combo} câu đúng liên tiếp!</div>}
 
       <div className="rounded-2xl border border-line bg-card p-4 shadow-sm sm:p-6">
         <div className="mb-3 text-xs font-bold uppercase tracking-wide text-brand">{ex.tag}</div>
-        <ExerciseView key={i} lang={lang} ex={ex} checked={checked} onReport={setReport} onAuto={(r) => check(r)} />
+        <ExerciseView key={i} lang={lang} ex={ex} checked={checked} gentle={gentle} onReport={setReport} onAuto={(r) => check(r)} />
       </div>
 
       {/* Chân trang phản hồi */}
@@ -99,7 +119,13 @@ export function Session({ lang, items, onFinish }: { lang: Lang; items: Ex[]; on
         {checked && (
           <div className="mb-3 animate-pop">
             <div className={cx("text-lg font-extrabold", report.correct ? "text-ok" : "text-zh")}>
-              {report.correct ? ["Tuyệt vời! 🎉", "Chính xác! ✨", "Giỏi quá! 💪", "Đúng rồi! 👏"][stats.total % 4] : hearts <= 0 ? "Hết tim rồi 💔" : "Chưa đúng 😅"}
+              {report.correct
+                ? ["Tuyệt vời! 🎉", "Chính xác! ✨", "Giỏi quá! 💪", "Đúng rồi! 👏"][stats.total % 4]
+                : hearts <= 0
+                  ? "Hết tim rồi 💔"
+                  : gentle
+                    ? "Chưa đúng — không sao, lát nữa mình ôn lại câu này nhé 🌱"
+                    : "Chưa đúng 😅"}
             </div>
             {report.note && <div className="text-sm">{report.note}</div>}
             {!report.correct && report.answer && (
@@ -124,7 +150,7 @@ export function Session({ lang, items, onFinish }: { lang: Lang; items: Ex[]; on
             )
           ) : (
             <Button className={cx("flex-1 py-3", report.correct ? "!bg-ok" : "!bg-zh")} onClick={() => next()}>
-              {hearts <= 0 ? "Xem kết quả" : i + 1 >= items.length ? "Hoàn thành" : "Tiếp tục"}
+              {hearts <= 0 ? "Xem kết quả" : i + 1 >= queue.length ? "Hoàn thành" : "Tiếp tục"}
             </Button>
           )}
         </div>
@@ -133,14 +159,14 @@ export function Session({ lang, items, onFinish }: { lang: Lang; items: Ex[]; on
   );
 }
 
-function ExerciseView({ lang, ex, checked, onReport, onAuto }: { lang: Lang; ex: Ex; checked: boolean; onReport: (r: Report) => void; onAuto: (r: Report) => void }) {
+function ExerciseView({ lang, ex, checked, gentle, onReport, onAuto }: { lang: Lang; ex: Ex; checked: boolean; gentle: boolean; onReport: (r: Report) => void; onAuto: (r: Report) => void }) {
   switch (ex.t) {
     case "choice":
       return <Choice lang={lang} ex={ex} checked={checked} onReport={onReport} />;
     case "fill":
       return <Fill ex={ex} checked={checked} onReport={onReport} />;
     case "match":
-      return <Match lang={lang} ex={ex} onAuto={onAuto} />;
+      return <Match lang={lang} ex={ex} onAuto={onAuto} gentle={gentle} />;
     case "build":
       return <Build lang={lang} ex={ex} checked={checked} onReport={onReport} />;
     case "type":
@@ -199,7 +225,10 @@ function Choice({ lang, ex, checked, onReport }: { lang: Lang; ex: Extract<Ex, {
             )}
           >
             <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md border border-line text-xs text-muted">{k + 1}</span>
-            {o}
+            <span className="flex flex-col">
+              {o}
+              {ex.optSub?.[k] && <span className="py font-sans text-xs font-normal text-muted">{ex.optSub[k]}</span>}
+            </span>
           </button>
         ))}
       </div>
@@ -236,7 +265,7 @@ function Fill({ ex, checked, onReport }: { ex: Extract<Ex, { t: "fill" }>; check
 }
 
 /* --- Ghép cặp --- */
-function Match({ lang, ex, onAuto }: { lang: Lang; ex: Extract<Ex, { t: "match" }>; onAuto: (r: Report) => void }) {
+function Match({ lang, ex, onAuto, gentle }: { lang: Lang; ex: Extract<Ex, { t: "match" }>; onAuto: (r: Report) => void; gentle?: boolean }) {
   const left = useMemo(() => shuffle(ex.pairs.map((p) => p.a)), [ex]);
   const right = useMemo(() => shuffle(ex.pairs.map((p) => p.b)), [ex]);
   const [selA, setSelA] = useState<string | null>(null);
@@ -259,7 +288,7 @@ function Match({ lang, ex, onAuto }: { lang: Lang; ex: Extract<Ex, { t: "match" 
             onAuto({
               ready: true,
               correct: mistakes.current === 0,
-              note: mistakes.current ? `Bạn ghép nhầm ${mistakes.current} lần — mất 1 tim.` : "Ghép đúng hết, không sai lần nào!",
+              note: mistakes.current ? (gentle ? `Bạn ghép nhầm ${mistakes.current} lần — lát nữa ghép lại nhé.` : `Bạn ghép nhầm ${mistakes.current} lần — mất 1 tim.`) : "Ghép đúng hết, không sai lần nào!",
             }),
           250,
         );
@@ -367,7 +396,10 @@ function Build({ lang, ex, checked, onReport }: { lang: Lang; ex: Extract<Ex, { 
                 used ? "border-line bg-line text-transparent" : "border-line bg-card hover:bg-brand/5",
               )}
             >
-              {w}
+              <span className="flex flex-col items-center leading-tight">
+                {w}
+                {ex.bankPy?.[k] && <span className={cx("py font-sans text-[11px] font-normal", used ? "text-transparent" : "text-muted")}>{ex.bankPy[k]}</span>}
+              </span>
             </button>
           );
         })}

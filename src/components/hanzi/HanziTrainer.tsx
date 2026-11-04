@@ -5,6 +5,7 @@ import type { HanziEntry } from "@/content/hanzi-types";
 import { useProgress } from "../ProgressProvider";
 import { Button, SpeakButton, cx } from "../ui";
 import { HanziPad, type StrokeEvent } from "./HanziPad";
+import { MemPanel } from "./MemPanel";
 import { XP, addXp } from "@/lib/progress";
 import { sfx } from "@/lib/sfx";
 
@@ -25,8 +26,19 @@ function readPrefs(): Prefs {
   }
 }
 
-export function HanziTrainer({ entries, startStage = 0, title }: { entries: HanziEntry[]; startStage?: number; title?: string }) {
+const GENTLE_HINTS = [
+  "Xem chậm từng nét và đọc phần 🧠 Mẹo nhớ. Nhớ chữ theo CỤM bộ phận, không phải từng nét.",
+  "Tô theo nét mờ. Chế độ người mới: chấm dễ hơn, sai 1 lần là hiện gợi ý ngay.",
+  "Tô lại lần nữa, vừa tô vừa đọc to pinyin và nghĩa.",
+  "Tự viết không mẫu. Nhớ lại các cụm bộ phận trước khi đặt bút. Sai 2 lần sẽ có gợi ý.",
+];
+const BATCH = 5;
+
+export function HanziTrainer({ entries: all, startStage = 0, title, beginner = false }: { entries: HanziEntry[]; startStage?: number; title?: string; beginner?: boolean }) {
   const { progress, update } = useProgress();
+  const batches = beginner && all.length > BATCH + 1 ? Math.ceil(all.length / BATCH) : 1;
+  const [batch, setBatch] = useState(0);
+  const entries = batches > 1 ? all.slice(batch * BATCH, batch * BATCH + BATCH) : all;
   const [idx, setIdx] = useState(0);
   const [stage, setStage] = useState(startStage);
   const [replay, setReplay] = useState(0);
@@ -44,12 +56,13 @@ export function HanziTrainer({ entries, startStage = 0, title }: { entries: Hanz
       return n;
     });
 
-  const e = entries[idx];
+  useEffect(() => setIdx(0), [batch]);
+  const e = entries[idx] ?? entries[0];
   useEffect(() => {
     setStage(startStage);
     setResult(null);
     setMsg(null);
-  }, [idx, startStage]);
+  }, [idx, startStage, batch]);
 
   if (!e) return null;
   const st = STAGES[stage];
@@ -87,6 +100,27 @@ export function HanziTrainer({ entries, startStage = 0, title }: { entries: Hanz
   return (
     <div className="flex flex-col gap-3">
       {title && <div className="text-sm font-bold text-muted">{title}</div>}
+
+      {batches > 1 && (
+        <div className="flex flex-col gap-1.5">
+          <div className="text-xs text-muted">🌱 Chế độ người mới: chia thành nhóm {BATCH} chữ — học chắc nhóm này rồi mới sang nhóm sau.</div>
+          <div className="flex flex-wrap gap-1.5">
+            {Array.from({ length: batches }, (_, b) => {
+              const chars = all.slice(b * BATCH, b * BATCH + BATCH);
+              const done = chars.every((x) => progress.hanzi[x.c]);
+              return (
+                <button
+                  key={b}
+                  onClick={() => setBatch(b)}
+                  className={cx("rounded-full px-3 py-1.5 text-xs font-semibold", b === batch ? "bg-zh text-white" : done ? "bg-ok/15 text-ok" : "bg-card text-muted ring-1 ring-line")}
+                >
+                  {done ? "✓ " : ""}Nhóm {b + 1} <span className="kai">{chars.map((x) => x.c).join("")}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Danh sách chữ */}
       <div className="-mx-1 overflow-x-auto px-1 pb-1">
@@ -136,6 +170,12 @@ export function HanziTrainer({ entries, startStage = 0, title }: { entries: Hanz
               </div>
             )}
           </div>
+          <div className="hidden w-full lg:block">
+            <MemPanel e={e} />
+          </div>
+        </div>
+        <div className="lg:hidden">
+          <MemPanel e={e} />
         </div>
 
         {/* Ô viết */}
@@ -158,7 +198,7 @@ export function HanziTrainer({ entries, startStage = 0, title }: { entries: Hanz
               </button>
             ))}
           </div>
-          <div className="text-sm text-muted">{st.hint}</div>
+          <div className="text-sm text-muted">{beginner ? GENTLE_HINTS[stage] : st.hint}</div>
 
           <div className="w-full">
             {result ? (
@@ -175,6 +215,8 @@ export function HanziTrainer({ entries, startStage = 0, title }: { entries: Hanz
                   </Button>
                   {idx + 1 < entries.length ? (
                     <Button onClick={() => setIdx(idx + 1)}>Chữ tiếp: <span className="kai text-lg">{entries[idx + 1].c}</span> →</Button>
+                  ) : batches > 1 && batch + 1 < batches ? (
+                    <Button onClick={() => setBatch(batch + 1)}>Nhóm tiếp theo →</Button>
                   ) : (
                     <Button onClick={() => setIdx(0)}>Ôn lại từ đầu</Button>
                   )}
@@ -188,6 +230,7 @@ export function HanziTrainer({ entries, startStage = 0, title }: { entries: Hanz
                 grid={prefs.grid}
                 pencil={prefs.pencil}
                 maxSize={padMax}
+                gentle={beginner}
                 onStroke={onStroke}
                 onComplete={onComplete}
                 onStylus={() => {

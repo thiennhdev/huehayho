@@ -25,6 +25,8 @@ export interface DayLog {
   xp: number;
   reviews: number;
   lessons: number;
+  /** số thẻ mới đã học lần đầu trong ngày (để giới hạn từ mới/ngày) */
+  fresh?: number;
 }
 
 export interface Profile {
@@ -32,6 +34,10 @@ export interface Profile {
   lang?: Lang;
   /** mục tiêu XP mỗi ngày */
   goal: number;
+  /** chế độ người mới theo ngôn ngữ (chậm hơn, chia nhỏ, nhiều gợi ý) */
+  beginner?: Partial<Record<Lang, boolean>>;
+  /** số từ mới tối đa mỗi ngày trong ôn tập */
+  newPerDay?: number;
   t: number;
 }
 
@@ -117,7 +123,7 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
   for (const [k, v] of Object.entries(b.days)) {
     const c = days[k];
     days[k] = c
-      ? { xp: Math.max(c.xp, v.xp), reviews: Math.max(c.reviews, v.reviews), lessons: Math.max(c.lessons, v.lessons) }
+      ? { xp: Math.max(c.xp, v.xp), reviews: Math.max(c.reviews, v.reviews), lessons: Math.max(c.lessons, v.lessons), fresh: Math.max(c.fresh ?? 0, v.fresh ?? 0) }
       : v;
   }
   return {
@@ -179,10 +185,40 @@ export function addXp(p: Progress, xp: number, extra?: Partial<DayLog>, now = Da
         xp: d.xp + xp,
         reviews: d.reviews + (extra?.reviews ?? 0),
         lessons: d.lessons + (extra?.lessons ?? 0),
+        fresh: (d.fresh ?? 0) + (extra?.fresh ?? 0),
       },
     },
     t: now,
   };
+}
+
+/** Chế độ người mới: mặc định BẬT cho tiếng Trung khi chưa xong Nhập môn + HSK 1 */
+export function isBeginner(p: Progress, lang: Lang): boolean {
+  const v = p.profile.beginner?.[lang];
+  if (v !== undefined) return v;
+  if (lang === "en") return false;
+  const doneZh = Object.entries(p.units).filter(([id, u]) => id.startsWith("zh-hsk0") || id.startsWith("zh-hsk1") ? !!u.done : false).length;
+  return doneZh < 14;
+}
+
+export function newPerDay(p: Progress, lang: Lang): number {
+  return p.profile.newPerDay ?? (isBeginner(p, lang) ? 8 : 20);
+}
+
+export function isNewCard(c: Card): boolean {
+  return c.reps === 0 && c.lapses === 0;
+}
+
+/** Hàng đợi ôn tập: mọi thẻ cũ đến hạn + tối đa N thẻ mới mỗi ngày */
+export function reviewQueue(p: Progress, lang: Lang, now = Date.now()): string[] {
+  const due = dueCards(p, lang, now);
+  const old = due.filter((id) => !isNewCard(p.cards[id]));
+  const left = Math.max(0, newPerDay(p, lang) - (p.days[dayKey(now)]?.fresh ?? 0));
+  const fresh = due
+    .filter((id) => isNewCard(p.cards[id]))
+    .sort((a, b) => p.cards[a].added - p.cards[b].added)
+    .slice(0, left);
+  return [...old, ...fresh];
 }
 
 /** Mỗi từ là 1 thẻ duy nhất theo ngôn ngữ (từ lặp lại ở nhiều bài vẫn chỉ 1 thẻ) */

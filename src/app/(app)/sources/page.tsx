@@ -68,6 +68,7 @@ export default function SourcesPage() {
         <Src name="Complete HSK Vocabulary (HSK 2.0 + HSK 3.0)" by="Yanis Zafirópulos (tổng hợp từ danh sách chính thức; nghĩa từ CC-CEDICT)" license="MIT License" url="https://github.com/drkameleon/complete-hsk-vocabulary" use="Gắn nhãn cấp HSK 3.0 / 2.0 cho từng từ tiếng Trung và kiểm tra pinyin." />
         <Src name="Hanzi Writer" by="David Chanin (mã nguồn mở)" license="MIT License" url="https://github.com/chanind/hanzi-writer" use="Hoạt hình thứ tự nét và chấm từng nét khi tập viết chữ Hán (chuột, cảm ứng, Apple Pencil)." />
         <Src name="Make Me a Hanzi → hanzi-writer-data" by="Shaunak Kishore; dữ liệu nét dựa trên phông Arphic" license="Arphic Public License" url="https://github.com/skishore/makemeahanzi" use="Dữ liệu đường nét & thứ tự viết của 677 chữ trong giáo án (chữ giản thể, theo thứ tự bút thuận Trung Quốc đại lục; có thể sai ở một số ít chữ)." />
+        <Src name="Make Me a Hanzi — dictionary.txt" by="Shaunak Kishore" license="GNU LGPL v3" url="https://github.com/skishore/makemeahanzi" use="Dữ liệu chiết tự (cách tách bộ phận, bộ chỉ nghĩa / phần gợi âm, loại chữ) cho phần 🧠 Mẹo nhớ. Tên bộ thủ Hán Việt và câu chuyện ghi nhớ do app biên soạn thêm." />
         <Src name="pinyin-pro" by="zh-lx (mã nguồn mở)" license="MIT License" url="https://github.com/zh-lx/pinyin-pro" use="Sinh pinyin cho câu ví dụ, hội thoại, bài đọc (đã nạp pinyin chuẩn từ điển của từ vựng để đúng thanh nhẹ)." />
       </Section>
 

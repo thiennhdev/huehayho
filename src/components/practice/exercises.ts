@@ -12,13 +12,14 @@ export interface SentenceLite {
   vi: string;
   py?: string;
   tiles: string[];
+  tilesPy?: string[];
 }
 
 export type Ex =
-  | { t: "choice"; tag: string; prompt: string; sub?: string; audio?: string; options: string[]; answer: number; explain?: string; han?: boolean; optHan?: boolean }
+  | { t: "choice"; tag: string; prompt: string; sub?: string; audio?: string; options: string[]; optSub?: string[]; answer: number; explain?: string; han?: boolean; optHan?: boolean }
   | { t: "fill"; tag: string; prompt: string; answers: string[]; explain?: string; han?: boolean }
   | { t: "match"; tag: string; pairs: { a: string; b: string }[]; han?: boolean }
-  | { t: "build"; tag: string; prompt: string; audio?: string; text: string; py?: string; answer: string[]; bank: string[]; han?: boolean; joiner: string }
+  | { t: "build"; tag: string; prompt: string; audio?: string; text: string; py?: string; answer: string[]; bank: string[]; bankPy?: string[]; han?: boolean; joiner: string }
   | { t: "type"; tag: string; audio: string; vi: string; text: string }
   | { t: "speak"; tag: string; text: string; py?: string; vi: string };
 
@@ -46,31 +47,36 @@ function distractors(pool: VocabLite[], exclude: string, n = 3) {
   return out;
 }
 
-export function vocabChoice(lang: Lang, v: VocabLite, pool: VocabLite[], kind: 0 | 1 | 2): Ex {
-  const d = distractors(pool, v.term);
+export function vocabChoice(lang: Lang, v: VocabLite & { hv?: string }, pool: (VocabLite & { hv?: string })[], kind: 0 | 1 | 2, easy = false, nOpts = 3): Ex {
+  const d = distractors(pool, v.term, nOpts);
   const zh = lang === "zh";
+  const subOf = (x: VocabLite) => (zh && easy ? x.py ?? "" : "");
   if (kind === 0) {
     const options = shuffle([v.vi, ...d.map((x) => x.vi)]);
-    return { t: "choice", tag: "Chọn nghĩa đúng", prompt: v.term, sub: zh ? v.py : v.ipa, audio: undefined, options, answer: options.indexOf(v.vi), han: zh };
+    const sub = zh ? [v.py, easy && (v as { hv?: string }).hv ? `Hán Việt: ${(v as { hv?: string }).hv}` : ""].filter(Boolean).join(" · ") : v.ipa;
+    return { t: "choice", tag: "Chọn nghĩa đúng", prompt: v.term, sub, options, answer: options.indexOf(v.vi), han: zh };
   }
-  if (kind === 1) {
-    const options = shuffle([v.term, ...d.map((x) => x.term)]);
-    return { t: "choice", tag: "Chọn từ đúng", prompt: `“${v.vi}”`, options, answer: options.indexOf(v.term), optHan: zh };
-  }
-  const options = shuffle([v.term, ...d.map((x) => x.term)]);
-  return { t: "choice", tag: "Nghe và chọn", prompt: "Bạn nghe thấy từ nào?", audio: v.term, options, answer: options.indexOf(v.term), optHan: zh };
+  const items = shuffle([v, ...d]);
+  const options = items.map((x) => x.term);
+  const optSub = easy && zh ? items.map(subOf) : undefined;
+  if (kind === 1) return { t: "choice", tag: "Chọn từ đúng", prompt: `“${v.vi}”`, options, optSub, answer: options.indexOf(v.term), optHan: zh };
+  return { t: "choice", tag: "Nghe và chọn", prompt: "Bạn nghe thấy từ nào?", audio: v.term, options, optSub, answer: options.indexOf(v.term), optHan: zh };
 }
 
-export function matchEx(lang: Lang, vocab: VocabLite[]): Ex {
-  return { t: "match", tag: "Ghép cặp", pairs: pick(vocab, 5).map((v) => ({ a: v.term, b: v.vi })), han: lang === "zh" };
+export function matchEx(lang: Lang, vocab: VocabLite[], n = 5): Ex {
+  return { t: "match", tag: "Ghép cặp", pairs: pick(vocab, n).map((v) => ({ a: v.term, b: v.vi })), han: lang === "zh" };
 }
 
-export function buildEx(lang: Lang, s: SentenceLite, extra: string[], listen = false): Ex {
+export function buildEx(lang: Lang, s: SentenceLite, extra: string[], listen = false, easy = false, tilePy: Record<string, string> = {}): Ex {
   const answerSet = new Set(s.tiles.map((x) => x.toLowerCase()));
-  const extras = pick(
-    Array.from(new Set(extra.filter((w) => !answerSet.has(w.toLowerCase())))),
-    Math.min(3, Math.max(2, Math.round(s.tiles.length / 3))),
-  );
+  const extras = easy
+    ? []
+    : pick(
+        Array.from(new Set(extra.filter((w) => !answerSet.has(w.toLowerCase())))),
+        Math.min(3, Math.max(2, Math.round(s.tiles.length / 3))),
+      );
+  s.tiles.forEach((t, i) => s.tilesPy?.[i] && (tilePy[t] = s.tilesPy[i]));
+  const bank = shuffle([...s.tiles, ...extras]);
   return {
     t: "build",
     tag: listen ? "Nghe và xếp câu" : "Dịch câu (xếp từ)",
@@ -79,7 +85,8 @@ export function buildEx(lang: Lang, s: SentenceLite, extra: string[], listen = f
     text: s.text,
     py: s.py,
     answer: s.tiles,
-    bank: shuffle([...s.tiles, ...extras]),
+    bank,
+    bankPy: easy && lang === "zh" ? bank.map((t) => tilePy[t] ?? "") : undefined,
     han: lang === "zh",
     joiner: lang === "zh" ? "" : " ",
   };
@@ -129,17 +136,38 @@ export function lessonSession(
   return out;
 }
 
+/** Buổi luyện tập cho NGƯỜI MỚI: nhiều lượt nhận biết, có pinyin gợi ý, xếp câu không có từ nhiễu */
+export function beginnerLessonSession(lang: Lang, vocab: (VocabLite & { hv?: string })[], questions: Question[], pool: (VocabLite & { hv?: string })[], sentences: SentenceLite[]): Ex[] {
+  const v = vocab.slice(); // giữ thứ tự bài học để dễ nhớ
+  // Phương án nhiễu lấy từ chính các từ vừa học (người mới chưa biết từ khác)
+  const p = v.length >= 3 ? v : pool;
+  const out: Ex[] = [];
+  if (v.length >= 3) out.push(matchEx(lang, v.slice(0, 4), Math.min(4, v.length)));
+  v.slice(0, 6).forEach((x, i) => {
+    out.push(vocabChoice(lang, x, p, 0, true, 2));
+    if (i % 2 === 1) out.push(vocabChoice(lang, v[i - 1], p, 2, true, 2));
+  });
+  if (v.length > 6) out.push(matchEx(lang, v.slice(4), Math.min(4, v.length - 4)));
+  shuffle(v).slice(0, 3).forEach((x) => out.push(vocabChoice(lang, x, p, 1, true, 2)));
+  const short = sentences.filter((s) => s.tiles.length <= 5);
+  shuffle(short.length >= 2 ? short : sentences)
+    .slice(0, 2)
+    .forEach((s) => out.push(buildEx(lang, s, [], false, true)));
+  out.push(...practiceEx(lang, questions));
+  return out;
+}
+
 /** Luyện nhanh: trộn từ & câu đã học, ưu tiên từ hay quên */
-export function mixedSession(lang: Lang, weak: VocabLite[], pool: VocabLite[], sentences: SentenceLite[], canSpeak: boolean): Ex[] {
+export function mixedSession(lang: Lang, weak: VocabLite[], pool: VocabLite[], sentences: SentenceLite[], canSpeak: boolean, easy = false): Ex[] {
   const v = weak.slice(0, 10);
   const allTiles = sentences.flatMap((s) => s.tiles);
-  const ss = shuffle(sentences);
+  const ss = shuffle(easy ? sentences.filter((s) => s.tiles.length <= 6) : sentences);
   const out: Ex[] = [];
-  if (v.length >= 4) out.push(matchEx(lang, v));
-  v.slice(0, 6).forEach((x, i) => out.push(vocabChoice(lang, x, pool.length >= 4 ? pool : v, (i % 3) as 0 | 1 | 2)));
-  ss.slice(0, 3).forEach((s, i) => out.push(buildEx(lang, s, allTiles, i === 2)));
-  if (ss[3]) out.push(lang === "en" ? typeEx(ss[3]) : buildEx(lang, ss[3], allTiles, true));
-  if (canSpeak && ss[4]) out.push(speakEx(ss[4]));
+  if (v.length >= 4) out.push(matchEx(lang, v, easy ? 4 : 5));
+  v.slice(0, easy ? 8 : 6).forEach((x, i) => out.push(vocabChoice(lang, x, pool.length >= 4 ? pool : v, (i % 3) as 0 | 1 | 2, easy, easy ? 2 : 3)));
+  ss.slice(0, easy ? 2 : 3).forEach((s, i) => out.push(buildEx(lang, s, allTiles, !easy && i === 2, easy)));
+  if (!easy && ss[3]) out.push(lang === "en" ? typeEx(ss[3]) : buildEx(lang, ss[3], allTiles, true));
+  if (!easy && canSpeak && ss[4]) out.push(speakEx(ss[4]));
   // xen kẽ cho đỡ đơn điệu, giữ ghép cặp ở đầu
   const head = out[0]?.t === "match" ? [out[0]] : [];
   return [...head, ...shuffle(out.slice(head.length))];

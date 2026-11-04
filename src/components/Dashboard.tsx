@@ -175,15 +175,22 @@ export function Dashboard({ outline }: { outline: Outline }) {
           </Card>
         </Link>
         {lang === "zh" && (
-          <Link href="/write" className="col-span-2">
-            <Card className="flex h-full items-center gap-3 transition hover:border-zh/50">
-              <div className="kai text-4xl text-zh">写</div>
-              <div>
+          <>
+            <Link href="/write">
+              <Card className="flex h-full flex-col gap-1 transition hover:border-zh/50">
+                <div className="kai text-3xl text-zh">写</div>
                 <div className="font-bold">Tập viết chữ Hán</div>
-                <div className="text-xs text-muted">Xem thứ tự nét → tô → tự viết, chấm từng nét · dùng được Apple Pencil</div>
-              </div>
-            </Card>
-          </Link>
+                <div className="text-xs text-muted">Mẹo chiết tự · xem nét → tô → tự viết · Apple Pencil</div>
+              </Card>
+            </Link>
+            <Link href="/pinyin">
+              <Card className="flex h-full flex-col gap-1 transition hover:border-zh/50">
+                <div className="text-3xl">🎵</div>
+                <div className="font-bold">Pinyin & thanh điệu</div>
+                <div className="text-xs text-muted">Nghe chọn thanh, âm khó, so với tiếng Việt — cho người mới</div>
+              </Card>
+            </Link>
+          </>
         )}
       </div>
 

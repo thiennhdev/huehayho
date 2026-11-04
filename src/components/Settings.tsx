@@ -4,7 +4,7 @@ import type { Lang } from "@/content/types";
 import { useProgress } from "./ProgressProvider";
 import { Button, Card, cx } from "./ui";
 import { usePrefs } from "@/lib/prefs";
-import { normalize } from "@/lib/progress";
+import { isBeginner, newPerDay, normalize } from "@/lib/progress";
 import { speak, ttsSupported, sttSupported } from "@/lib/speech";
 import { MicCheck } from "./practice/VoiceTools";
 
@@ -81,10 +81,58 @@ export function Settings() {
       </Card>
 
       <Card className="flex flex-col gap-4">
+        <h2 id="beginner" className="scroll-mt-20 font-bold">🌱 Chế độ người mới</h2>
+        <p className="-mt-2 text-sm text-muted">
+          Học 3 từ một lần, đọc chậm, có pinyin gợi ý dưới đáp án, sai không mất tim (câu sai được hỏi lại cuối buổi), giới hạn từ mới mỗi ngày, tập viết chia nhóm 5 chữ và chấm nét dễ hơn. Tiếng Trung tự bật cho tới khi xong Nhập môn + HSK 1.
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(["zh", "en"] as Lang[]).map((l) => {
+            const on = isBeginner(progress, l);
+            return (
+              <label key={l} className={cx("flex items-center gap-3 rounded-xl border-2 p-3 text-sm", on ? "border-ok bg-ok/5" : "border-line")}>
+                <input
+                  type="checkbox"
+                  checked={on}
+                  onChange={(e) => setProfile({ beginner: { ...(progress.profile.beginner ?? {}), [l]: e.target.checked } })}
+                />
+                <span>
+                  <b>{l === "zh" ? "🇨🇳 Tiếng Trung" : "🇬🇧 Tiếng Anh"}</b>
+                  <span className="block text-xs text-muted">{on ? "Đang bật — nhẹ nhàng, chậm rãi" : "Đang tắt — chế độ tiêu chuẩn"}</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+        <div className="flex flex-col gap-1 text-sm">
+          <span className="font-semibold">Số từ mới tối đa mỗi ngày (trong Ôn tập)</span>
+          <div className="grid grid-cols-5 gap-2">
+            {[5, 8, 12, 20, 30].map((n) => (
+              <button
+                key={n}
+                onClick={() => setProfile({ newPerDay: n })}
+                className={cx("rounded-xl border-2 p-2 font-bold", newPerDay(progress, lang) === n ? "border-brand bg-brand/10" : "border-line")}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+          <span className="text-xs text-muted">Người mới nên 5–8 từ/ngày. Từ cũ đến hạn ôn vẫn hiện đủ — chỉ giới hạn từ MỚI để không bị ngợp.</span>
+        </div>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-semibold">Tốc độ đọc tiếng Trung: {prefs.rateZh.toFixed(2)}×</span>
+          <input type="range" min={0.4} max={1.1} step={0.05} value={prefs.rateZh} onChange={(e) => setPrefs({ rateZh: Number(e.target.value) })} />
+          <span className="text-xs text-muted">Mặc định 0.70× cho người mới. Nút 🐢 luôn đọc chậm hơn nữa.</span>
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={prefs.frontPinyin} onChange={(e) => setPrefs({ frontPinyin: e.target.checked })} /> Hiện pinyin ở mặt trước thẻ ôn tập tiếng Trung
+        </label>
+      </Card>
+
+      <Card className="flex flex-col gap-4">
         <h2 className="font-bold">🔊 Phát âm & hiển thị</h2>
         {!caps.tts && <div className="text-sm text-warn">Trình duyệt này không hỗ trợ đọc to. Hãy dùng Chrome, Edge hoặc Safari.</div>}
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-semibold">Tốc độ đọc: {prefs.rate.toFixed(2)}×</span>
+          <span className="font-semibold">Tốc độ đọc tiếng Anh: {prefs.rate.toFixed(2)}×</span>
           <input type="range" min={0.5} max={1.2} step={0.05} value={prefs.rate} onChange={(e) => setPrefs({ rate: Number(e.target.value) })} />
         </label>
         <div className="flex flex-col gap-1 text-sm">

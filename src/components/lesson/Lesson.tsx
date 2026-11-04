@@ -10,8 +10,9 @@ import { Session, type SessionResult } from "../practice/Session";
 import { OfficialBadge } from "../OfficialBadge";
 import { HanziTrainer } from "../hanzi/HanziTrainer";
 import type { HanziEntry } from "@/content/hanzi-types";
-import { lessonSession, type SentenceLite } from "../practice/exercises";
-import { XP, addXp, cardId } from "@/lib/progress";
+import { beginnerLessonSession, lessonSession, type SentenceLite } from "../practice/exercises";
+import { XP, addXp, cardId, isBeginner } from "@/lib/progress";
+import { ChunkLearner } from "./ChunkLearner";
 import { newCard } from "@/lib/srs";
 
 type Ref = { href: string; title: string } | null;
@@ -35,6 +36,7 @@ export function Lesson({ lang, unit, level, position, prev, next, pool, sentence
   const [step, setStep] = useState<StepKey>("vocab");
   const { progress } = useProgress();
   const up = progress.units[unit.id];
+  const beginner = isBeginner(progress, lang);
   const steps: { key: StepKey; label: string; icon: string }[] = [
     { key: "vocab", label: "Từ vựng", icon: "🔤" },
     ...(lang === "zh" && hanzi.length ? [{ key: "hanzi" as StepKey, label: "Tập viết", icon: "🖌️" }] : []),
@@ -72,6 +74,23 @@ export function Lesson({ lang, unit, level, position, prev, next, pool, sentence
         <p className="text-sm text-muted">{unit.topic}</p>
       </div>
 
+      {beginner && (
+        <Card className="border-ok/30 bg-ok/5 text-sm">
+          <div className="font-bold">🌱 Chế độ người mới đang bật</div>
+          <div className="mt-0.5 text-muted">
+            Học 3 từ một lần · đọc chậm · có pinyin gợi ý dưới đáp án · sai không mất tim, câu sai được hỏi lại. Đừng vội — mỗi ngày 1 bài là rất tốt!{" "}
+            <Link href="/settings#beginner" className="font-semibold text-brand">
+              Tuỳ chỉnh
+            </Link>
+          </div>
+          {lang === "zh" && unit.id.startsWith("zh-hsk0") && (
+            <Link href="/pinyin" className="mt-2 inline-block font-semibold text-brand">
+              🎵 Luyện thanh điệu & pinyin trước khi học →
+            </Link>
+          )}
+        </Card>
+      )}
+
       <Card className="bg-brand/5">
         <div className="text-xs font-bold uppercase tracking-wide text-brand">Mục tiêu bài học</div>
         <ul className="mt-1 grid gap-1 text-sm sm:grid-cols-2">
@@ -101,11 +120,11 @@ export function Lesson({ lang, unit, level, position, prev, next, pool, sentence
       </div>
 
       <div className="animate-pop" key={step}>
-        {step === "vocab" && <VocabStep lang={lang} unit={unit} />}
-        {step === "hanzi" && <HanziStep unitId={unit.id} entries={hanzi} />}
+        {step === "vocab" && <VocabStep lang={lang} unit={unit} beginner={beginner} onNext={() => setStep(steps[1].key)} />}
+        {step === "hanzi" && <HanziStep unitId={unit.id} entries={hanzi} beginner={beginner} />}
         {step === "grammar" && <GrammarStep lang={lang} unit={unit} />}
         {step === "context" && <ContextStep lang={lang} unit={unit} />}
-        {step === "practice" && <PracticeStep lang={lang} unit={unit} pool={pool} sentences={sentences} onDone={() => setStep("output")} />}
+        {step === "practice" && <PracticeStep lang={lang} unit={unit} pool={pool} sentences={sentences} beginner={beginner} onDone={() => setStep("output")} />}
         {step === "output" && <OutputStep lang={lang} unit={unit} />}
       </div>
 
@@ -176,8 +195,8 @@ function Phonetic({ v, lang }: { v: VocabItem; lang: Lang }) {
   );
 }
 
-function VocabStep({ lang, unit }: { lang: Lang; unit: Unit }) {
-  const [mode, setMode] = useState<"list" | "cards">("list");
+function VocabStep({ lang, unit, beginner, onNext }: { lang: Lang; unit: Unit; beginner: boolean; onNext: () => void }) {
+  const [mode, setMode] = useState<"learn" | "list" | "cards">(beginner ? "learn" : "list");
   const [prefs] = usePrefs();
   const { missing, add } = useAddCards(lang, unit.vocab);
   return (
@@ -187,15 +206,24 @@ function VocabStep({ lang, unit }: { lang: Lang; unit: Unit }) {
           {unit.vocab.length} từ mới · bấm 🔊 để nghe, 🎙️ để luyện phát âm
         </div>
         <div className="flex gap-1 rounded-xl bg-card p-1 ring-1 ring-line">
-          {(["list", "cards"] as const).map((m) => (
+          {(["learn", "list", "cards"] as const).map((m) => (
             <button key={m} onClick={() => setMode(m)} className={cx("rounded-lg px-3 py-1.5 text-sm font-semibold", mode === m ? "bg-brand text-white" : "text-muted")}>
-              {m === "list" ? "Danh sách" : "Thẻ lật"}
+              {m === "learn" ? "🌱 Từng nhóm" : m === "list" ? "Danh sách" : "Thẻ lật"}
             </button>
           ))}
         </div>
       </div>
 
-      {mode === "list" ? (
+      {mode === "learn" ? (
+        <ChunkLearner
+          lang={lang}
+          vocab={unit.vocab}
+          onFinished={() => {
+            add();
+            onNext();
+          }}
+        />
+      ) : mode === "list" ? (
         <div className="grid gap-3 sm:grid-cols-2">
           {unit.vocab.map((v) => (
             <Card key={v.term} className="flex flex-col gap-1.5">
@@ -288,7 +316,7 @@ function FlipCards({ lang, vocab }: { lang: Lang; vocab: VocabItem[] }) {
 
 /* ---------------- Tập viết chữ Hán ---------------- */
 
-function HanziStep({ unitId, entries }: { unitId: string; entries: HanziEntry[] }) {
+function HanziStep({ unitId, entries, beginner }: { unitId: string; entries: HanziEntry[]; beginner: boolean }) {
   const fresh = entries.filter((e) => e.isNew);
   const old = entries.filter((e) => !e.isNew);
   const ordered = [...fresh, ...old];
@@ -302,7 +330,12 @@ function HanziStep({ unitId, entries }: { unitId: string; entries: HanziEntry[] 
           🖨 In vở tập viết
         </a>
       </div>
-      <HanziTrainer entries={ordered} />
+      {beginner && fresh.length > 0 && (
+        <div className="rounded-xl bg-ok/5 p-2.5 text-xs text-muted ring-1 ring-ok/20">
+          🌱 Người mới: chỉ cần viết thật kỹ các <b>chữ mới</b> — đọc phần 🧠 Mẹo nhớ trước khi viết. Chữ đã gặp có thể bỏ qua. Không cần viết được mọi chữ ngay, nhận mặt chữ là đủ ở giai đoạn đầu.
+        </div>
+      )}
+      <HanziTrainer entries={beginner && fresh.length ? fresh : ordered} beginner={beginner} />
     </Card>
   );
 }
@@ -450,21 +483,21 @@ function ContextStep({ lang, unit }: { lang: Lang; unit: Unit }) {
 
 /* ---------------- Luyện tập (kiểu Duolingo) ---------------- */
 
-function PracticeStep({ lang, unit, pool, sentences, onDone }: { lang: Lang; unit: Unit; pool: PoolItem[]; sentences: SentenceLite[]; onDone: () => void }) {
+function PracticeStep({ lang, unit, pool, sentences, beginner, onDone }: { lang: Lang; unit: Unit; pool: PoolItem[]; sentences: SentenceLite[]; beginner: boolean; onDone: () => void }) {
   const { progress, update } = useProgress();
   const [round, setRound] = useState(0);
   const [canSpeak, setCanSpeak] = useState(false);
   useEffect(() => setCanSpeak(sttSupported()), []);
   const items = useMemo(
-    () => lessonSession(lang, unit.vocab, unit.practice, pool, sentences, canSpeak),
+    () => (beginner ? beginnerLessonSession(lang, unit.vocab, unit.practice, pool, sentences) : lessonSession(lang, unit.vocab, unit.practice, pool, sentences, canSpeak)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lang, unit, pool, sentences, canSpeak, round],
+    [lang, unit, pool, sentences, canSpeak, round, beginner],
   );
   const [result, setResult] = useState<{ score: number; xp: number; first: boolean; failed: boolean } | null>(null);
 
   function finish(r: SessionResult) {
     const score = r.total ? Math.round((r.correct / r.total) * 100) : 0;
-    const pass = !r.failed && score >= 70;
+    const pass = !r.failed && score >= (beginner ? 60 : 70);
     const prevUnit = progress.units[unit.id];
     const first = pass && !prevUnit?.done;
     const xp = first ? XP.lessonComplete + (score === 100 ? XP.perfectBonus : 0) : pass ? 10 : 5;
@@ -487,13 +520,13 @@ function PracticeStep({ lang, unit, pool, sentences, onDone }: { lang: Lang; uni
   }
 
   if (result) {
-    const pass = !result.failed && result.score >= 70;
+    const pass = !result.failed && result.score >= (beginner ? 60 : 70);
     return (
       <Card className="flex flex-col items-center gap-3 py-8 text-center">
         <div className="text-6xl">{result.failed ? "💔" : result.score === 100 ? "🏆" : pass ? "🎉" : "💪"}</div>
         <div className="text-3xl font-extrabold">{result.score}%</div>
         <div className="font-semibold">
-          {result.failed ? "Hết tim rồi! Ôn lại phần từ vựng & ngữ pháp rồi thử lại nhé" : pass ? (result.first ? "Hoàn thành bài học!" : "Làm tốt lắm!") : "Gần được rồi — cần đạt 70% để hoàn thành bài"}
+          {result.failed ? "Hết tim rồi! Ôn lại phần từ vựng & ngữ pháp rồi thử lại nhé" : pass ? (result.first ? "Hoàn thành bài học!" : "Làm tốt lắm!") : `Gần được rồi — cần đạt ${beginner ? 60 : 70}% để hoàn thành bài. Xem lại phần Từ vựng (🌱 Từng nhóm) rồi thử lại nhé`}
         </div>
         <div className="text-sm text-muted">
           +{result.xp} XP {pass && result.first && "· Từ vựng đã được thêm vào thẻ ôn tập"}
@@ -514,7 +547,7 @@ function PracticeStep({ lang, unit, pool, sentences, onDone }: { lang: Lang; uni
     );
   }
 
-  return <Session key={round} lang={lang} items={items} onFinish={finish} />;
+  return <Session key={round} lang={lang} items={items} onFinish={finish} gentle={beginner} />;
 }
 
 /* ---------------- Nói & Viết ---------------- */

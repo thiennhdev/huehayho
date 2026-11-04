@@ -11,6 +11,7 @@ export interface Sentence {
   vi: string;
   py?: string;
   tiles: string[];
+  tilesPy?: string[];
   unitId: string;
 }
 
@@ -71,7 +72,7 @@ export function unitSentences(u: Unit, lang: Lang): Sentence[] {
     const tiles = lang === "zh" ? segmentZh(r.text) : tokensEn(r.text);
     const ok = lang === "zh" ? tiles.length >= 3 && tiles.length <= 9 && [...r.text].length <= 22 : tiles.length >= 3 && tiles.length <= 10;
     if (!ok) continue;
-    out.push({ text: r.text, vi: r.vi, py: lang === "zh" ? py(r.text) : undefined, tiles, unitId: u.id });
+    out.push({ text: r.text, vi: r.vi, py: lang === "zh" ? py(r.text) : undefined, tiles, tilesPy: lang === "zh" ? tiles.map((t) => py(t)) : undefined, unitId: u.id });
   }
   return out;
 }

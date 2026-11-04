@@ -3,12 +3,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useProgress } from "./ProgressProvider";
 import { cx } from "./ui";
-import { dueCards, streakOf } from "@/lib/progress";
+import { reviewQueue, streakOf } from "@/lib/progress";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const { lang, progress, name, sync, storage, loaded } = useProgress();
-  const due = loaded ? dueCards(progress, lang).length : 0;
+  const due = loaded ? reviewQueue(progress, lang).length : 0;
   const streak = streakOf(progress.days);
   const nav = [
     { href: "/", label: "Trang chủ", icon: "🏠", match: (p: string) => p === "/" },

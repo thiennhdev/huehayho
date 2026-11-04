@@ -44,6 +44,10 @@ export function Roadmap(props: { lang: Lang; name: string; flag: string; framewo
                 <Link href="/write" className="font-semibold text-zh hover:underline">
                   ✍️ Tập viết chữ Hán
                 </Link>
+                {" · "}
+                <Link href="/pinyin" className="font-semibold text-zh hover:underline">
+                  🎵 Pinyin & thanh điệu
+                </Link>
               </>
             )}
           </p>

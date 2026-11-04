@@ -1,6 +1,6 @@
 // Tóm tắt tiến độ của 1 người (dùng cho trang chủ & bảng "Hai đứa mình")
 import type { Lang, Outline, OutlineLevel, OutlineUnit } from "@/content/types";
-import { dayKey, dueCards, lastDays, streakOf, totalXp, type Progress } from "./progress";
+import { dayKey, lastDays, reviewQueue, streakOf, totalXp, type Progress } from "./progress";
 import { isMature } from "./srs";
 
 export interface NextUnit {
@@ -75,7 +75,7 @@ export function summarize(
     nextTitle: next ? next.unit.title : null,
     cards: cards.length,
     mature: cards.filter(([, c]) => isMature(c)).length,
-    due: dueCards(p, lang, now).length,
+    due: reviewQueue(p, lang, now).length,
     week: lastDays(7, now).map((d) => ({ day: d, xp: p.days[d]?.xp ?? 0 })),
     lastActive: p.t,
   };

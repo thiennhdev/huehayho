@@ -37,7 +37,7 @@ export function speak(text: string, lang: Lang, opts?: { rate?: number; onEnd?: 
   u.lang = code;
   const v = pickVoice(code);
   if (v) u.voice = v;
-  u.rate = opts?.rate ?? prefs.rate;
+  u.rate = opts?.rate ?? (lang === "zh" ? prefs.rateZh : prefs.rate);
   if (opts?.onEnd) {
     u.onend = opts.onEnd;
     u.onerror = opts.onEnd;

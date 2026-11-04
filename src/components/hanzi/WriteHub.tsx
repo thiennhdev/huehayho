@@ -7,11 +7,16 @@ import { useProgress } from "../ProgressProvider";
 import { Bar, Button, Card, Empty, cx } from "../ui";
 import { HanziPad } from "./HanziPad";
 import { HanziTrainer } from "./HanziTrainer";
+import { WRITING_TIPS } from "@/content/hanzi-memory";
+import { isBeginner } from "@/lib/progress";
+import { SpeakButton } from "../ui";
 
-type Tab = "basics" | "lessons" | "review";
+type Tab = "basics" | "lessons" | "review" | "tips";
+type Radical = { r: string; name: string; chars: string[] };
 
-export function WriteHub({ levels, strokes, rules }: { levels: HanziLevel[]; strokes: StrokeType[]; rules: StrokeRule[] }) {
+export function WriteHub({ levels, strokes, rules, radicals }: { levels: HanziLevel[]; strokes: StrokeType[]; rules: StrokeRule[]; radicals: Radical[] }) {
   const { progress } = useProgress();
+  const beginner = isBeginner(progress, "zh");
   const [tab, setTab] = useState<Tab>("lessons");
   const [levelId, setLevelId] = useState(levels[0].id);
   const [open, setOpen] = useState<{ title: string; entries: HanziEntry[]; start?: number } | null>(null);
@@ -27,7 +32,7 @@ export function WriteHub({ levels, strokes, rules }: { levels: HanziLevel[]; str
         <button onClick={() => setOpen(null)} className="self-start text-sm font-semibold text-brand">
           ← Quay lại danh sách
         </button>
-        <HanziTrainer entries={open.entries} startStage={open.start ?? 0} title={open.title} />
+        <HanziTrainer entries={open.entries} startStage={open.start ?? 0} title={open.title} beginner={beginner} />
       </div>
     );
   }
@@ -55,19 +60,67 @@ export function WriteHub({ levels, strokes, rules }: { levels: HanziLevel[]; str
         </div>
       </Card>
 
-      <div className="flex gap-1 rounded-xl bg-card p-1 ring-1 ring-line">
+      {beginner && written.length < 15 && (
+        <Card className="border-ok/30 bg-ok/5 text-sm">
+          🌱 <b>Mới bắt đầu?</b> Đọc tab <button className="font-semibold text-brand" onClick={() => setTab("tips")}>💡 Mẹo nhớ</button> và{" "}
+          <button className="font-semibold text-brand" onClick={() => setTab("basics")}>① Nét &amp; quy tắc</button> trước (10 phút), sau đó mỗi ngày chỉ cần <b>5 chữ</b>. Chế độ người mới đang bật: chấm nét dễ hơn, gợi ý sớm hơn, chia nhóm 5 chữ.
+        </Card>
+      )}
+
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-card p-1 ring-1 ring-line sm:grid-cols-4">
         {(
           [
             ["basics", "① Nét & quy tắc"],
             ["lessons", "② Chữ theo bài"],
             ["review", "③ Ôn chữ đã học"],
+            ["tips", "💡 Mẹo nhớ"],
           ] as [Tab, string][]
         ).map(([k, label]) => (
-          <button key={k} onClick={() => setTab(k)} className={cx("flex-1 rounded-lg px-2 py-2 text-sm font-semibold", tab === k ? "bg-zh text-white" : "text-muted")}>
+          <button key={k} onClick={() => setTab(k)} className={cx("rounded-lg px-2 py-2 text-sm font-semibold", tab === k ? "bg-zh text-white" : "text-muted")}>
             {label}
           </button>
         ))}
       </div>
+
+      {tab === "tips" && (
+        <>
+          <Card>
+            <h2 className="mb-1 text-lg font-extrabold">💡 Mẹo nhớ &amp; viết chữ Hán</h2>
+            <p className="mb-3 text-sm text-muted">Tổng hợp từ kinh nghiệm của giáo viên tiếng Trung và nghiên cứu về trí nhớ — áp dụng sẵn trong app.</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {WRITING_TIPS.map((t) => (
+                <div key={t.title} className="rounded-xl border border-line bg-bg p-3">
+                  <div className="font-bold">
+                    {t.icon} {t.title}
+                  </div>
+                  <p className="mt-1 text-sm leading-relaxed text-muted">{t.body}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card>
+            <h2 className="mb-1 text-lg font-extrabold">🧩 {radicals.length} bộ thủ gặp nhiều nhất trong giáo trình</h2>
+            <p className="mb-3 text-sm text-muted">Thuộc các bộ này là đoán được nghĩa của phần lớn chữ bạn sẽ học. Chạm vào bộ để nghe và xem các chữ chứa nó.</p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+              {radicals.map((r) => (
+                <details key={r.r} className="rounded-xl border border-line bg-bg p-2">
+                  <summary className="flex cursor-pointer list-none items-center gap-2">
+                    <span className="kai text-3xl leading-none text-zh">{r.r}</span>
+                    <span className="min-w-0 flex-1 text-xs">
+                      <span className="block font-semibold">{r.name}</span>
+                      <span className="text-muted">{r.chars.length} chữ</span>
+                    </span>
+                  </summary>
+                  <div className="mt-2 flex flex-wrap items-center gap-1">
+                    <span className="kai text-xl">{r.chars.slice(0, 12).join(" ")}</span>
+                    <SpeakButton text={r.chars.slice(0, 6).join("，")} lang="zh" size="sm" />
+                  </div>
+                </details>
+              ))}
+            </div>
+          </Card>
+        </>
+      )}
 
       {tab === "basics" && (
         <>
@@ -221,7 +274,9 @@ export function WriteHub({ levels, strokes, rules }: { levels: HanziLevel[]; str
           <Card className="flex flex-col items-center gap-3 py-8 text-center">
             <div className="text-5xl">🖌️</div>
             <div className="font-bold">Ôn {Math.min(10, written.length)} chữ — ưu tiên chữ hay sai</div>
-            <div className="max-w-sm text-sm text-muted">Bỏ qua phần tô, viết thẳng không có mẫu (默写) như khi đi thi HSK.</div>
+            <div className="max-w-sm text-sm text-muted">
+              {beginner ? "Tô lại 1 lần cho nhớ tay rồi tự viết không có mẫu (默写)." : "Bỏ qua phần tô, viết thẳng không có mẫu (默写) như khi đi thi HSK."}
+            </div>
             <Button
               onClick={() => {
                 const pick = [...written]
@@ -231,7 +286,7 @@ export function WriteHub({ levels, strokes, rules }: { levels: HanziLevel[]; str
                     return pa.clean / pa.reps - pb.clean / pb.reps || pa.t - pb.t;
                   })
                   .slice(0, 10);
-                setOpen({ title: "Ôn chữ đã học", entries: pick, start: 3 });
+                setOpen({ title: "Ôn chữ đã học", entries: pick, start: beginner ? 2 : 3 });
               }}
             >
               Bắt đầu ôn

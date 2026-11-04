@@ -1,3 +1,13 @@
+/** Mẹo nhớ một chữ: loại chữ, cấu trúc, các bộ phận (bộ chỉ nghĩa / phần gợi âm), câu chuyện chiết tự */
+export interface HanziMem {
+  type?: string;
+  typeDesc?: string;
+  structure?: string;
+  parts: { c: string; name?: string; py?: string; role?: "nghĩa" | "âm" }[];
+  story?: string;
+  radical?: string;
+}
+
 export interface HanziEntry {
   c: string; // chữ
   py: string; // pinyin của chữ (theo ngữ cảnh từ)
@@ -8,6 +18,7 @@ export interface HanziEntry {
   strokes: number;
   isNew: boolean; // lần đầu xuất hiện trong giáo trình
   unitId: string;
+  mem?: HanziMem;
 }
 
 export interface HanziUnit {

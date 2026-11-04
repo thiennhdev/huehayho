@@ -6,7 +6,7 @@ import { useProgress } from "./ProgressProvider";
 import { Button, Card, Empty, cx } from "./ui";
 import { Session, type SessionResult } from "./practice/Session";
 import { mixedSession, type Ex, type SentenceLite } from "./practice/exercises";
-import { addXp, langOfId } from "@/lib/progress";
+import { addXp, isBeginner, langOfId } from "@/lib/progress";
 import { sttSupported } from "@/lib/speech";
 
 type Dict = Record<string, VocabItem & { unitId: string }>;
@@ -36,6 +36,7 @@ export function QuickPractice() {
       });
   }, [lang]);
 
+  const beginner = isBeginner(progress, lang);
   const learnedIds = Object.keys(progress.cards).filter((id) => langOfId(id) === lang && dict?.[id]);
   const ready = dict && sentences;
 
@@ -52,7 +53,7 @@ export function QuickPractice() {
     const units = new Set(Object.keys(progress.units));
     const ss = sentences.filter((s) => units.has(s.unitId));
     const pool = Object.values(dict).filter((v) => units.has(v.unitId));
-    setItems(mixedSession(lang, weak, pool, ss, sttSupported()));
+    setItems(mixedSession(lang, weak, beginner && weak.length >= 4 ? weak : pool, ss, sttSupported(), beginner));
     setResult(null);
     setRound((r) => r + 1);
   }
@@ -81,7 +82,7 @@ export function QuickPractice() {
       </div>
 
       {items ? (
-        <Session key={round} lang={lang} items={items} onFinish={finish} />
+        <Session key={round} lang={lang} items={items} onFinish={finish} gentle={beginner} />
       ) : !ready ? (
         <Card>Đang tải…</Card>
       ) : learnedIds.length < 4 ? (

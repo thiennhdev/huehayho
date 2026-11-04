@@ -3,14 +3,16 @@
 import { useEffect, useState } from "react";
 
 export interface Prefs {
-  rate: number; // tốc độ đọc 0.6–1.2
+  rate: number; // tốc độ đọc tiếng Anh 0.5–1.2
+  rateZh: number; // tốc độ đọc tiếng Trung (mặc định chậm hơn cho người mới)
+  frontPinyin: boolean; // hiện pinyin ở mặt trước thẻ ôn tập
   accent: "en-US" | "en-GB";
   showPinyin: boolean;
   showTranslation: boolean;
   autoPlay: boolean; // tự đọc khi lật thẻ
 }
 
-const DEFAULT: Prefs = { rate: 0.9, accent: "en-US", showPinyin: true, showTranslation: true, autoPlay: true };
+const DEFAULT: Prefs = { rate: 0.9, rateZh: 0.7, accent: "en-US", showPinyin: true, showTranslation: true, autoPlay: true, frontPinyin: true };
 const KEY = "hcn:prefs";
 
 export function readPrefs(): Prefs {
