@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { allUnits, getLevel, getUnit, isLang, unitHref } from "@/content";
 import { withPinyin } from "@/lib/pinyin";
 import { unitSentences } from "@/lib/sentences";
+import { unitHanzi } from "@/lib/hanzi";
 import { Lesson } from "@/components/lesson/Lesson";
 
 type P = { params: Promise<{ lang: string; level: string; unit: string }> };
@@ -40,6 +41,7 @@ export default async function UnitPage({ params }: P) {
       next={link(idx + 1)}
       pool={pool}
       sentences={unitSentences(raw, lang)}
+      hanzi={lang === "zh" ? unitHanzi(raw) : undefined}
     />
   );
 }

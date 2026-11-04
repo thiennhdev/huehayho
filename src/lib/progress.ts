@@ -40,6 +40,13 @@ export interface Writing {
   t: number;
 }
 
+/** Tiến độ tập viết một chữ Hán */
+export interface HanziProgress {
+  reps: number; // số lần tự viết xong
+  clean: number; // số lần tự viết không sai nét nào
+  t: number;
+}
+
 export interface Progress {
   v: 1;
   profile: Profile;
@@ -47,6 +54,7 @@ export interface Progress {
   cards: Record<string, Card>;
   days: Record<string, DayLog>;
   writings: Record<string, Writing>;
+  hanzi: Record<string, HanziProgress>;
   t: number;
 }
 
@@ -56,10 +64,12 @@ export const XP = {
   review: 2,
   writing: 15,
   speaking: 3,
+  hanzi: 3,
+  hanziClean: 2,
 } as const;
 
 export function emptyProgress(): Progress {
-  return { v: 1, profile: { goal: 60, t: 0 }, units: {}, cards: {}, days: {}, writings: {}, t: 0 };
+  return { v: 1, profile: { goal: 60, t: 0 }, units: {}, cards: {}, days: {}, writings: {}, hanzi: {}, t: 0 };
 }
 
 export function normalize(p: unknown): Progress {
@@ -73,6 +83,7 @@ export function normalize(p: unknown): Progress {
     cards: o.cards ?? {},
     days: o.days ?? {},
     writings: o.writings ?? {},
+    hanzi: o.hanzi ?? {},
     t: o.t ?? 0,
   };
 }
@@ -116,6 +127,7 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
     cards: mergeByT(a.cards, b.cards),
     days,
     writings: mergeByT(a.writings, b.writings),
+    hanzi: mergeByT(a.hanzi, b.hanzi),
     t: Math.max(a.t, b.t),
   };
 }

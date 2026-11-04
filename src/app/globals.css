@@ -14,11 +14,17 @@
   --color-warn: #d97706;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
     "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --font-kai: "Kaiti SC", "STKaiti", "KaiTi", "楷体", "AR PL UKai CN", "PingFang SC", serif;
   --font-han: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
+}
+
+:root {
+  --grid-line: #f1a7a7;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
+    --grid-line: #6b2f3a;
     --color-bg: #0f0c18;
     --color-card: #1a1626;
     --color-ink: #ece8f6;
@@ -31,6 +37,10 @@
 
 html {
   -webkit-tap-highlight-color: transparent;
+}
+
+.kai {
+  font-family: var(--font-kai);
 }
 
 body {

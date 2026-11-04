@@ -38,6 +38,14 @@ export function Roadmap(props: { lang: Lang; name: string; flag: string; framewo
             <Link href="/sources" className="font-semibold text-brand hover:underline">
               Nguồn giáo trình
             </Link>
+            {lang === "zh" && (
+              <>
+                {" · "}
+                <Link href="/write" className="font-semibold text-zh hover:underline">
+                  ✍️ Tập viết chữ Hán
+                </Link>
+              </>
+            )}
           </p>
         </div>
         <Link href={`/learn/${lang === "en" ? "zh" : "en"}`} className="shrink-0 rounded-xl border border-line px-3 py-2 text-sm font-semibold hover:bg-brand/5">

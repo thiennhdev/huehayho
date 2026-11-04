@@ -8,6 +8,8 @@ import { usePrefs } from "@/lib/prefs";
 import { speak, speakAll, stopSpeaking, sttSupported } from "@/lib/speech";
 import { Session, type SessionResult } from "../practice/Session";
 import { OfficialBadge } from "../OfficialBadge";
+import { HanziTrainer } from "../hanzi/HanziTrainer";
+import type { HanziEntry } from "@/content/hanzi-types";
 import { lessonSession, type SentenceLite } from "../practice/exercises";
 import { XP, addXp, cardId } from "@/lib/progress";
 import { newCard } from "@/lib/srs";
@@ -24,16 +26,18 @@ interface Props {
   next: Ref;
   pool: PoolItem[];
   sentences: SentenceLite[];
+  hanzi?: HanziEntry[];
 }
 
-type StepKey = "vocab" | "grammar" | "context" | "practice" | "output";
+type StepKey = "vocab" | "hanzi" | "grammar" | "context" | "practice" | "output";
 
-export function Lesson({ lang, unit, level, position, prev, next, pool, sentences }: Props) {
+export function Lesson({ lang, unit, level, position, prev, next, pool, sentences, hanzi = [] }: Props) {
   const [step, setStep] = useState<StepKey>("vocab");
   const { progress } = useProgress();
   const up = progress.units[unit.id];
   const steps: { key: StepKey; label: string; icon: string }[] = [
     { key: "vocab", label: "Từ vựng", icon: "🔤" },
+    ...(lang === "zh" && hanzi.length ? [{ key: "hanzi" as StepKey, label: "Tập viết", icon: "🖌️" }] : []),
     { key: "grammar", label: "Ngữ pháp", icon: "🧩" },
     { key: "context", label: unit.dialogue ? "Hội thoại" : "Bài đọc", icon: unit.dialogue ? "💬" : "📰" },
     { key: "practice", label: "Luyện tập", icon: "✍️" },
@@ -98,6 +102,7 @@ export function Lesson({ lang, unit, level, position, prev, next, pool, sentence
 
       <div className="animate-pop" key={step}>
         {step === "vocab" && <VocabStep lang={lang} unit={unit} />}
+        {step === "hanzi" && <HanziStep unitId={unit.id} entries={hanzi} />}
         {step === "grammar" && <GrammarStep lang={lang} unit={unit} />}
         {step === "context" && <ContextStep lang={lang} unit={unit} />}
         {step === "practice" && <PracticeStep lang={lang} unit={unit} pool={pool} sentences={sentences} onDone={() => setStep("output")} />}
@@ -278,6 +283,27 @@ function FlipCards({ lang, vocab }: { lang: Lang; vocab: VocabItem[] }) {
         </Button>
       </div>
     </div>
+  );
+}
+
+/* ---------------- Tập viết chữ Hán ---------------- */
+
+function HanziStep({ unitId, entries }: { unitId: string; entries: HanziEntry[] }) {
+  const fresh = entries.filter((e) => e.isNew);
+  const old = entries.filter((e) => !e.isNew);
+  const ordered = [...fresh, ...old];
+  return (
+    <Card className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-sm text-muted">
+          {fresh.length} chữ mới{old.length ? ` + ${old.length} chữ đã gặp ở bài trước` : ""} · Xem nét → Tô 2 lần → Tự viết
+        </div>
+        <a href={`/print/hanzi?u=${unitId}`} target="_blank" rel="noreferrer" className="text-sm font-semibold text-brand">
+          🖨 In vở tập viết
+        </a>
+      </div>
+      <HanziTrainer entries={ordered} />
+    </Card>
   );
 }
 

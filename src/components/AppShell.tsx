@@ -16,6 +16,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/review", label: "Ôn tập", icon: "🃏", match: (p: string) => p.startsWith("/review"), badge: due },
     { href: "/practice", label: "Luyện", icon: "⚡", match: (p: string) => p.startsWith("/practice") },
     { href: "/speak", label: "Phát âm", icon: "🎤", match: (p: string) => p.startsWith("/speak") },
+    ...(lang === "zh" ? [{ href: "/write", label: "Viết", icon: "🖌️", match: (p: string) => p.startsWith("/write") }] : []),
     { href: `/exam/${lang}`, label: lang === "en" ? "IELTS" : "HSK", icon: "🎯", match: (p: string) => p.startsWith("/exam") },
   ];
   return (
@@ -24,15 +25,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-3 px-4 py-3">
           <Link href="/" className="flex items-center gap-2 font-extrabold">
             <img src="/icon.svg" alt="" className="h-8 w-8" />
-            <span className="hidden sm:inline">Học Cùng Nhau</span>
+            <span className="hidden whitespace-nowrap sm:inline">Học Cùng Nhau</span>
           </Link>
-          <nav className="ml-4 hidden gap-1 md:flex">
+          <nav className="ml-4 hidden gap-1 lg:flex">
             {nav.map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
                 className={cx(
-                  "relative rounded-xl px-3 py-2 text-sm font-semibold transition",
+                  "relative whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition",
                   n.match(path) ? "bg-brand/10 text-brand" : "text-muted hover:text-ink",
                 )}
               >
@@ -62,9 +63,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="flex-1 px-4 pb-28 pt-4 md:pb-10">{children}</main>
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-        <div className="mx-auto grid max-w-lg grid-cols-6">
+      <main className="flex-1 px-4 pb-28 pt-4 lg:pb-10">{children}</main>
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+        <div className={cx("mx-auto grid max-w-lg", nav.length > 6 ? "grid-cols-7" : "grid-cols-6")}>
           {nav.map((n) => (
             <Link key={n.href} href={n.href} className={cx("relative flex flex-col items-center gap-0.5 py-2 text-[10px] font-semibold", n.match(path) ? "text-brand" : "text-muted")}>
               <span className="text-xl leading-none">{n.icon}</span>
